@@ -3,6 +3,7 @@ var Logger = require('./modules/Logger');
 var Commands = require('./modules/CommandList');
 var GameServer = require('./GameServer');
 var figlet = require('figlet');
+var fs = require('fs');
 
 // Init variables
 var showConsole = true;
@@ -131,13 +132,14 @@ if (showConsole) {
         output: process.stdout
     });
     setTimeout(prompt, 100);
+    setTimeout(fnfifo, 100);
 }
 
 // Console functions
-
 function prompt() {
     in_.question(">", function (str) {
         try {
+  					Logger.print(str);
             parseCommands(str);
         } catch (err) {
             Logger.error(err.stack);
@@ -147,7 +149,26 @@ function prompt() {
     });
 }
 
+function fnfifo() {
+	if (fs.lstatSync('fifo').isFIFO()) {
+		// We open the FIFO file called "fifo" in the working directory
+		fifo = fs.createReadStream('fifo');
+
+		fifo.on('data', function(data) {
+     	debugger;
+			parseCommands(data.toString());
+  		// Logger.print(data.toString());
+			// Do something here, for example, sending the line to an IRC connection or eval()'ing the code.
+		});
+
+		// When putting a line with some commands, such as 'echo "line" > fifo', an EOF will be written in the fifo
+		// and the stream will be closed. So, we reopen the fifo.
+		fifo.once('end', fnfifo);
+	} 
+}
+
 function parseCommands(str) {
+  	Logger.print(str);
     // Log the string
     Logger.write(">" + str);
 
@@ -163,6 +184,8 @@ function parseCommands(str) {
 
     // Get command function
     var execute = Commands.list[first];
+  	Logger.print(str);
+
     if (typeof execute != 'undefined') {
         execute(gameServer, split);
     } else {
